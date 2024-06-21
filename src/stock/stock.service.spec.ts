@@ -43,7 +43,7 @@ describe('StockService', () => {
   });
 
   it('should decrease the stock quantity', async () => {
-    await service.decrease({ productId: 1, quantity: 5 });
+    await service.decreaseWithRetry({ productId: 1, quantity: 5 });
 
     const updatedStock = await prisma.stock.findFirst({
       where: { productId: 1 },
@@ -56,19 +56,33 @@ describe('StockService', () => {
     await prisma.stock.deleteMany(); // 모든 데이터 삭제
 
     await expect(
-      service.decrease({ productId: 2, quantity: 5 }),
+      service.decreaseWithRetry({ productId: 2, quantity: 5 }),
     ).rejects.toThrow(StockNotFoundError);
   });
 
   it('should throw InsufficientStockError if stock quantity is insufficient', async () => {
     await expect(
-      service.decrease({ productId: 1, quantity: 15 }),
+      service.decreaseWithRetry({ productId: 1, quantity: 15 }),
     ).rejects.toThrow(InsufficientStockError);
   });
 
   it('should decrease the stock quantity correctly with sufficient stock', async () => {
     const promises = Array.from({ length: 10 }).map(() =>
-      service.decrease({ productId: 1, quantity: 1 }),
+      service.decreaseWithRetry({ productId: 1, quantity: 1 }),
+    );
+
+    await Promise.all(promises);
+
+    const updatedStock = await prisma.stock.findFirst({
+      where: { productId: 1 },
+    });
+
+    expect(updatedStock?.quantity).toBe(0); // 처음 10에서 5씩 2번 감소하면 0이어야 합니다.
+  });
+
+  it('should decrease the stock quantity correctly with sufficient stock', async () => {
+    const promises = Array.from({ length: 10 }).map(() =>
+      service.decreaseWithLock({ productId: 1, quantity: 1 }),
     );
 
     await Promise.all(promises);

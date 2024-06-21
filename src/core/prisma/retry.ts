@@ -11,7 +11,7 @@ export async function retry<T>(
   fn: () => Promise<T>,
   maxRetries: number,
   delay = 100,
-): Promise<T> {
+) {
   let attempts = 0;
 
   while (attempts < maxRetries) {

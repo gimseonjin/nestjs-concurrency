@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { retry } from '../core/prisma/retry';
 import { Stock, StockRepository } from './stock.repository';
+import { LockManager } from '../core/lock.manager';
 
 export class StockNotFoundError extends Error {
   constructor(productId: number) {
@@ -23,12 +23,15 @@ interface DecreaseStockParams {
 
 @Injectable()
 export class StockService {
-  constructor(private stockRepository: StockRepository) {}
+  constructor(
+    private stockRepository: StockRepository,
+    private lockManager: LockManager
+  ) {}
 
-  async decrease(params: DecreaseStockParams, maxRetries = 10): Promise<void> {
+  async decreaseWithRetry(params: DecreaseStockParams, maxRetries = 10): Promise<void> {
     const { productId, quantity } = params;
 
-    await retry(async () => {
+    await this.lockManager.retry(async () => {
       const stock = await this.stockRepository.findStockByProductId(productId);
       if (!stock) {
         throw new StockNotFoundError(productId);
@@ -42,6 +45,26 @@ export class StockService {
         stock.version,
       );
     }, maxRetries);
+  }
+
+  async decreaseWithLock(params: DecreaseStockParams): Promise<void> {
+    const { productId, quantity } = params;
+    const lockKey = `lock:stock:${productId}`;
+
+    await this.lockManager.executeWithLock(lockKey, async () => {
+      const stock = await this.stockRepository.findStockByProductId(productId);
+      if (!stock) {
+        throw new StockNotFoundError(productId);
+      }
+
+      this.validateStockQuantity(stock, quantity);
+
+      await this.stockRepository.updateStockQuantity(
+        stock.id,
+        quantity,
+        stock.version,
+      );
+    });
   }
 
   private validateStockQuantity(stock: Stock, quantity: number) {
