@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../core/prisma/prisma.service';
+import { retry } from '../core/prisma/retry';
+import { Stock, StockRepository } from './stock.repository';
 
 export class StockNotFoundError extends Error {
   constructor(productId: number) {
@@ -20,52 +21,32 @@ interface DecreaseStockParams {
   quantity: number;
 }
 
-type Stock = {
-  id: number;
-  productId: number;
-  quantity: number;
-};
-
 @Injectable()
 export class StockService {
-  constructor(private prismaService: PrismaService) {}
+  constructor(private stockRepository: StockRepository) {}
 
-  async decrease(params: DecreaseStockParams) {
+  async decrease(params: DecreaseStockParams, maxRetries = 10): Promise<void> {
     const { productId, quantity } = params;
 
-    const stock = await this.findStockByProductId(productId);
+    await retry(async () => {
+      const stock = await this.stockRepository.findStockByProductId(productId);
+      if (!stock) {
+        throw new StockNotFoundError(productId);
+      }
 
-    this.validateStockQuantity(stock, quantity);
+      this.validateStockQuantity(stock, quantity);
 
-    await this.updateStockQuantity(stock.id, quantity);
-  }
-
-  private async findStockByProductId(productId: number) {
-    const stock = await this.prismaService.stock.findFirst({
-      where: { productId: productId },
-    });
-
-    if (!stock) {
-      throw new StockNotFoundError(productId);
-    }
-
-    return stock;
+      await this.stockRepository.updateStockQuantity(
+        stock.id,
+        quantity,
+        stock.version,
+      );
+    }, maxRetries);
   }
 
   private validateStockQuantity(stock: Stock, quantity: number) {
     if (stock.quantity - quantity < 0) {
       throw new InsufficientStockError();
     }
-  }
-
-  private async updateStockQuantity(stockId: number, quantity: number) {
-    await this.prismaService.stock.update({
-      where: { id: stockId },
-      data: {
-        quantity: {
-          decrement: quantity,
-        },
-      },
-    });
   }
 }
