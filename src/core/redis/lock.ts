@@ -23,6 +23,9 @@ export async function acquireLock(
   return lock === 'OK';
 }
 
-export async function releaseLock(redisClient: Redis, lockKey: string): Promise<void> {
+export async function releaseLock(
+  redisClient: Redis,
+  lockKey: string,
+): Promise<void> {
   await redisClient.del(lockKey);
 }

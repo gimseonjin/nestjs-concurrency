@@ -28,9 +28,9 @@ export class LockManager {
   }
 
   async retry<T>(
-    fn: () => Promise<T>, 
-    maxRetries: number, 
-    delayMs: number = 100
+    fn: () => Promise<T>,
+    maxRetries: number,
+    delayMs: number = 100,
   ): Promise<T> {
     return await retry(fn, maxRetries, delayMs);
   }

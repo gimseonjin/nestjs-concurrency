@@ -1,34 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { Stock, StockRepository } from './stock.repository';
 import { LockManager } from '../core/lock.manager';
-
-export class StockNotFoundError extends Error {
-  constructor(productId: number) {
-    super(`Stock not found for product ID ${productId}`);
-    this.name = 'StockNotFoundError';
-  }
-}
-
-export class InsufficientStockError extends Error {
-  constructor() {
-    super('Insufficient stock');
-    this.name = 'InsufficientStockError';
-  }
-}
-
-interface DecreaseStockParams {
-  productId: number;
-  quantity: number;
-}
+import { DecreaseStockParams } from './stock.interfaces';
+import { StockNotFoundError, InsufficientStockError } from './errors';
 
 @Injectable()
 export class StockService {
   constructor(
     private stockRepository: StockRepository,
-    private lockManager: LockManager
+    private lockManager: LockManager,
   ) {}
 
-  async decreaseWithRetry(params: DecreaseStockParams, maxRetries = 10): Promise<void> {
+  async decreaseWithRetry(params: DecreaseStockParams, maxRetries = 10) {
     const { productId, quantity } = params;
 
     await this.lockManager.retry(async () => {
@@ -47,7 +30,7 @@ export class StockService {
     }, maxRetries);
   }
 
-  async decreaseWithLock(params: DecreaseStockParams): Promise<void> {
+  async decreaseWithLock(params: DecreaseStockParams) {
     const { productId, quantity } = params;
     const lockKey = `lock:stock:${productId}`;
 
