@@ -19,7 +19,7 @@ export class StockService {
 
     await this.lockManager.retry(async () => {
       await this.prisma.$executeRaw(
-        Prisma.sql`SET TRANSACTION ISOLATION LEVEL SERIALIZABLE`,
+        Prisma.sql`SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED`,
       );
 
       await this.prisma.$transaction(async (prisma: PrismaClient) => {
