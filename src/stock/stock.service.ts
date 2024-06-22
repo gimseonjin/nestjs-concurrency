@@ -17,32 +17,25 @@ export class StockService {
   async decreaseStockWithPessimisticLock(params: DecreaseStockParams) {
     const { productId, quantity } = params;
 
-    return this.prisma.$transaction(async (tx) => {
-      const stock = await tx.$queryRaw<Stock[]>(
-        Prisma.sql`SELECT * FROM stocks WHERE productId = ${productId} FOR UPDATE`,
-      );
+    return this.prisma.$transaction(async (prisma: PrismaClient) => {
+      const stock =
+        await this.stockRepository.findStockByProductIdWithPersimisticLock(
+          productId,
+          prisma,
+        );
 
-      if (!stock[0]) {
+      if (!stock) {
         throw new StockNotFoundError(productId);
       }
 
-      this.validateStockQuantity(stock[0], quantity);
+      this.validateStockQuantity(stock, quantity);
 
-      // 재고 감소 및 버전 증가
-      await tx.stock.update({
-        where: {
-          id: stock[0].id,
-          version: stock[0].version,
-        },
-        data: {
-          quantity: {
-            decrement: quantity,
-          },
-          version: {
-            increment: 1,
-          },
-        },
-      });
+      await this.stockRepository.updateStockQuantity(
+        stock.id,
+        quantity,
+        stock.version,
+        prisma,
+      );
     });
   }
 
