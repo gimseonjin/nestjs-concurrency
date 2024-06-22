@@ -3,7 +3,7 @@ import { StockService } from './stock.service';
 import { PrismaClient } from '@prisma/client';
 import { CoreModule } from '../core/core.module';
 import { StockRepository } from './stock.repository';
-import { StockNotFoundError, InsufficientStockError } from './errors';
+import { StockNotFoundError, InsufficientStockError } from './stock.interfaces';
 
 describe('StockService', () => {
   let service: StockService;

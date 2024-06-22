@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Stock, StockRepository } from './stock.repository';
 import { LockManager } from '../core/lock.manager';
-import { DecreaseStockParams } from './stock.interfaces';
-import { StockNotFoundError, InsufficientStockError } from './errors';
+import { DecreaseStockParams, InsufficientStockError, StockNotFoundError } from './stock.interfaces';
 import { PrismaService } from '../core/prisma/prisma.service';
 import { Prisma, PrismaClient } from '@prisma/client';
 
