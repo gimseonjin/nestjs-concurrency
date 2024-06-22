@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
+import { PrismaClient } from '@prisma/client';
 
 export type Stock = {
   id: number;
@@ -12,8 +13,8 @@ export type Stock = {
 export class StockRepository {
   constructor(private prismaService: PrismaService) {}
 
-  async findStockByProductId(productId: number) {
-    return this.prismaService.stock.findFirst({
+  async findStockByProductId(productId: number, tx?: PrismaClient) {
+    return (tx ?? this.prismaService).stock.findFirst({
       where: { productId: productId },
     });
   }
@@ -22,8 +23,9 @@ export class StockRepository {
     stockId: number,
     quantity: number,
     version: number,
+    tx?: PrismaClient,
   ) {
-    await this.prismaService.stock.update({
+    await (tx ?? this.prismaService).stock.update({
       where: {
         id: stockId,
         version: version,

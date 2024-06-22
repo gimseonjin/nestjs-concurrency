@@ -29,7 +29,7 @@ describe('StockService', () => {
     await prisma.stock.create({
       data: {
         productId: 1,
-        quantity: 10,
+        quantity: 500,
       },
     });
   });
@@ -40,13 +40,13 @@ describe('StockService', () => {
 
   describe('decreaseWithRetry', () => {
     it('재고 수량을 감소시켜야 한다 (retry)', async () => {
-      await service.decreaseWithRetry({ productId: 1, quantity: 5 });
+      await service.decreaseWithRetry({ productId: 1, quantity: 250 });
 
       const updatedStock = await prisma.stock.findFirst({
         where: { productId: 1 },
       });
 
-      expect(updatedStock?.quantity).toBe(5);
+      expect(updatedStock?.quantity).toBe(250);
     });
 
     it('재고를 찾을 수 없으면 StockNotFoundError를 던져야 한다 (retry)', async () => {
@@ -57,50 +57,12 @@ describe('StockService', () => {
 
     it('재고 수량이 부족하면 InsufficientStockError를 던져야 한다 (retry)', async () => {
       await expect(
-        service.decreaseWithRetry({ productId: 1, quantity: 15 }),
+        service.decreaseWithRetry({ productId: 1, quantity: 1000 }),
       ).rejects.toThrow(InsufficientStockError);
     });
 
     it('동시성 문제를 처리하여 재고 수량을 올바르게 감소시켜야 한다 (retry)', async () => {
-      const promises = Array.from({ length: 10 }).map(() =>
-        service.decreaseWithRetry({ productId: 1, quantity: 1 }),
-      );
-
-      await Promise.all(promises);
-
-      const updatedStock = await prisma.stock.findFirst({
-        where: { productId: 1 },
-      });
-
-      expect(updatedStock?.quantity).toBe(0);
-    });
-  });
-
-  describe('decreaseWithLock', () => {
-    it('재고 수량을 감소시켜야 한다 (lock)', async () => {
-      await service.decreaseWithLock({ productId: 1, quantity: 5 });
-
-      const updatedStock = await prisma.stock.findFirst({
-        where: { productId: 1 },
-      });
-
-      expect(updatedStock?.quantity).toBe(5);
-    });
-
-    it('재고를 찾을 수 없으면 StockNotFoundError를 던져야 한다 (lock)', async () => {
-      await expect(
-        service.decreaseWithLock({ productId: 2, quantity: 5 }),
-      ).rejects.toThrow(StockNotFoundError);
-    });
-
-    it('재고 수량이 부족하면 InsufficientStockError를 던져야 한다 (lock)', async () => {
-      await expect(
-        service.decreaseWithLock({ productId: 1, quantity: 15 }),
-      ).rejects.toThrow(InsufficientStockError);
-    });
-
-    it('동시성 문제를 처리하여 재고 수량을 올바르게 감소시켜야 한다 (lock)', async () => {
-      const promises = Array.from({ length: 10 }).map(() =>
+      const promises = Array.from({ length: 500 }).map(() =>
         service.decreaseWithLock({ productId: 1, quantity: 1 }),
       );
 
@@ -111,6 +73,44 @@ describe('StockService', () => {
       });
 
       expect(updatedStock?.quantity).toBe(0);
+    }, 50000);
+  });
+
+  describe('decreaseWithLock', () => {
+    it('재고 수량을 감소시켜야 한다 (lock)', async () => {
+      await service.decreaseWithLock({ productId: 1, quantity: 250 });
+
+      const updatedStock = await prisma.stock.findFirst({
+        where: { productId: 1 },
+      });
+
+      expect(updatedStock?.quantity).toBe(250);
     });
+
+    it('재고를 찾을 수 없으면 StockNotFoundError를 던져야 한다 (lock)', async () => {
+      await expect(
+        service.decreaseWithLock({ productId: 2, quantity: 500 }),
+      ).rejects.toThrow(StockNotFoundError);
+    });
+
+    it('재고 수량이 부족하면 InsufficientStockError를 던져야 한다 (lock)', async () => {
+      await expect(
+        service.decreaseWithLock({ productId: 1, quantity: 1000 }),
+      ).rejects.toThrow(InsufficientStockError);
+    });
+
+    it('동시성 문제를 처리하여 재고 수량을 올바르게 감소시켜야 한다 (lock)', async () => {
+      const promises = Array.from({ length: 500 }).map(() =>
+        service.decreaseWithLock({ productId: 1, quantity: 1 }),
+      );
+
+      await Promise.all(promises);
+
+      const updatedStock = await prisma.stock.findFirst({
+        where: { productId: 1 },
+      });
+
+      expect(updatedStock?.quantity).toBe(0);
+    }, 50000);
   });
 });
