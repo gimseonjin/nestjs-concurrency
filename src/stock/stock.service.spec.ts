@@ -113,4 +113,54 @@ describe('StockService', () => {
       expect(updatedStock?.quantity).toBe(0);
     }, 50000);
   });
+
+  describe('decreaseStockWithPessimisticLock', () => {
+    it('재고 수량을 감소시켜야 한다 (pessimistic lock)', async () => {
+      await service.decreaseStockWithPessimisticLock({
+        productId: 1,
+        quantity: 250,
+      }); // `decreaseStock`이 `decreaseStockWithPessimisticLock`을 호출하도록 설정
+
+      const updatedStock = await prisma.stock.findFirst({
+        where: { productId: 1 },
+      });
+
+      expect(updatedStock?.quantity).toBe(250);
+    });
+
+    it('재고를 찾을 수 없으면 StockNotFoundError를 던져야 한다 (pessimistic lock)', async () => {
+      await expect(
+        service.decreaseStockWithPessimisticLock({
+          productId: 2,
+          quantity: 500,
+        }),
+      ).rejects.toThrow(StockNotFoundError);
+    });
+
+    it('재고 수량이 부족하면 InsufficientStockError를 던져야 한다 (pessimistic lock)', async () => {
+      await expect(
+        service.decreaseStockWithPessimisticLock({
+          productId: 1,
+          quantity: 1000,
+        }),
+      ).rejects.toThrow(InsufficientStockError);
+    });
+
+    it('동시성 문제를 처리하여 재고 수량을 올바르게 감소시켜야 한다 (pessimistic lock)', async () => {
+      const promises = Array.from({ length: 500 }).map(() =>
+        service.decreaseStockWithPessimisticLock({
+          productId: 1,
+          quantity: 1,
+        }),
+      );
+
+      await Promise.all(promises);
+
+      const updatedStock = await prisma.stock.findFirst({
+        where: { productId: 1 },
+      });
+
+      expect(updatedStock?.quantity).toBe(0);
+    }, 50000);
+  });
 });
