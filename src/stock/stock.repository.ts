@@ -18,7 +18,9 @@ export class StockRepository {
     tx?: PrismaClient,
   ) {
     const stock = await (tx ?? this.prismaService).$queryRaw<Stock[]>(
-      Prisma.sql`SELECT * FROM stocks WHERE productId = ${productId} FOR UPDATE`,
+      Prisma.sql`SELECT *
+                 FROM stocks
+                 WHERE productId = ${productId} FOR UPDATE`,
     );
 
     return stock[0] ?? null;
